@@ -1,0 +1,217 @@
+#include <stdio.h>
+#include <stdlib.h>
+int **allocateMatrix(int rows, int cols)
+{
+    int **matrix = (int **)malloc(rows * sizeof(int *));
+    if (matrix == NULL)
+    {
+        printf("\nMemory allocation failed!");
+        exit(1);
+    }
+    for (int i = 0; i < rows; i++)
+    {
+        matrix[i] = (int *)malloc(cols * sizeof(int));
+        if (matrix[i] == NULL)
+        {
+            printf("\nMemory allocation failed!");
+            exit(1);
+        }
+    }
+    return matrix;
+}
+void freeMatrix(int **matrix, int rows)
+{
+    for (int i = 0; i < rows; i++)
+    {
+        free(matrix[i]);
+    }
+    free(matrix);
+}
+int **addMatrices(int n, int **A, int **B)
+{
+    int **C = allocateMatrix(n, n);
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            C[i][j] = A[i][j] + B[i][j];
+        }
+    }
+    return C;
+}
+int **subtractMatrices(int n, int **A, int **B)
+{
+    int **C = allocateMatrix(n, n);
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            C[i][j] = A[i][j] - B[i][j];
+        }
+    }
+    return C;
+}
+void copySubMatrix(int n, int **source, int **destination, int startRow, int startCol)
+{
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            destination[i][j] = source[startRow + i][startCol + j];
+        }
+    }
+}
+void pasteSubMatrix(int n, int **source, int **destination, int startRow, int startCol)
+{
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            source[i + startRow][j + startCol] = destination[i][j];
+        }
+    }
+}
+int **strassen(int n, int **A, int **B)
+{
+    if (n == 1)
+    {
+        int **C = allocateMatrix(1, 1);
+        C[0][0] = A[0][0] * B[0][0];
+        return C;
+    }
+    int newSize = n / 2;
+
+    int **A11 = allocateMatrix(newSize, newSize);
+    int **A12 = allocateMatrix(newSize, newSize);
+    int **A21 = allocateMatrix(newSize, newSize);
+    int **A22 = allocateMatrix(newSize, newSize);
+
+    int **B11 = allocateMatrix(newSize, newSize);
+    int **B12 = allocateMatrix(newSize, newSize);
+    int **B21 = allocateMatrix(newSize, newSize);
+    int **B22 = allocateMatrix(newSize, newSize);
+
+    copySubMatrix(newSize, A, A11, 0, 0);
+    copySubMatrix(newSize, A, A12, 0, newSize);
+    copySubMatrix(newSize, A, A21, newSize, 0);
+    copySubMatrix(newSize, A, A22, newSize, newSize);
+
+    copySubMatrix(newSize, B, B11, 0, 0);
+    copySubMatrix(newSize, B, B12, 0, newSize);
+    copySubMatrix(newSize, B, B21, newSize, 0);
+    copySubMatrix(newSize, B, B22, newSize, newSize);
+
+    int **P1 = strassen(newSize, A11, subtractMatrices(newSize, B12, B22));
+    int **P2 = strassen(newSize, addMatrices(newSize, A11, A12), B22);
+    int **P3 = strassen(newSize, addMatrices(newSize, A21, A22), B11);
+    int **P4 = strassen(newSize, A22, subtractMatrices(newSize, B21, B11));
+    int **P5 = strassen(newSize, addMatrices(newSize, A11, A22), addMatrices(newSize, B11, B22));
+    int **P6 = strassen(newSize, subtractMatrices(newSize, A12, A22), addMatrices(newSize, B21, B22));
+    int **P7 = strassen(newSize, subtractMatrices(newSize, A11, A21), addMatrices(newSize, B11, B12));
+    int **C11 = addMatrices(newSize, subtractMatrices(newSize, addMatrices(newSize, P5, P4), P2), P6);
+    int **C12 = addMatrices(newSize, P1, P2);
+    int **C21 = addMatrices(newSize, P3, P4);
+    int **C22 = subtractMatrices(newSize, subtractMatrices(newSize, addMatrices(newSize, P1, P5), P7), P3);
+
+    int **C = allocateMatrix(n, n);
+    pasteSubMatrix(newSize, C, C11, 0, 0);
+    pasteSubMatrix(newSize, C, C12, 0, newSize);
+    pasteSubMatrix(newSize, C, C21, newSize, 0);
+    pasteSubMatrix(newSize, C, C22, newSize, newSize);
+
+    freeMatrix(A11, newSize);
+    freeMatrix(A12, newSize);
+    freeMatrix(A21, newSize);
+    freeMatrix(A22, newSize);
+
+    freeMatrix(B11, newSize);
+    freeMatrix(B12, newSize);
+    freeMatrix(B21, newSize);
+    freeMatrix(B22, newSize);
+
+    freeMatrix(P1, newSize);
+    freeMatrix(P2, newSize);
+    freeMatrix(P3, newSize);
+    freeMatrix(P4, newSize);
+    freeMatrix(P5, newSize);
+    freeMatrix(P6, newSize);
+    freeMatrix(P7, newSize);
+
+    return C;
+}
+int **PaddedMatrix(int **A, int n, int padSize)
+{
+    int **matrix = allocateMatrix(padSize, padSize);
+    for (int i = 0; i < padSize; i++)
+    {
+        for (int j = 0; j < padSize; j++)
+        {
+            if (i < n && j < n)
+            {
+                matrix[i][j] = A[i][j];
+            }
+            else
+            {
+                matrix[i][j] = 0;
+            }
+        }
+    }
+    return matrix;
+}
+int padDet(int n)
+{
+    int count = 1;
+    while (count < n)
+    {
+        count = count * 2;
+    }
+    return count;
+}
+int main()
+{
+    int n;
+    printf("\nEnter the size of the square matrix: ");
+    scanf("%d", &n);
+
+    int **A = allocateMatrix(n, n);
+    int **B = allocateMatrix(n, n);
+
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            printf("\nEnter A[%d][%d]: ", i, j);
+            scanf("%d", &A[i][j]);
+        }
+    }
+
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            printf("\nEnter B[%d][%d]: ", i, j);
+            scanf("%d", &B[i][j]);
+        }
+    }
+    int padSize = padDet(n);
+    int **PA = PaddedMatrix(A, n, padSize);
+    int **PB = PaddedMatrix(B, n, padSize);
+    int **C = strassen(4, PA, PB);
+    printf("\nThe product Matrix is:\n");
+    for (int i = 0; i < n; i++)
+    {
+        printf("\n");
+        for (int j = 0; j < n; j++)
+        {
+            printf("%d\t", C[i][j]);
+        }
+    }
+    freeMatrix(A, n);
+    freeMatrix(B, n);
+    freeMatrix(C, n);
+    freeMatrix(PA, padSize);
+    freeMatrix(PB, padSize);
+
+    return 0;
+}
+
